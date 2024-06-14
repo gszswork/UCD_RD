@@ -8,7 +8,7 @@ from torch_geometric.data import Data
 from torch_geometric.data import DataLoader
 import warnings
 
-#warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 class UCDDataset(nn.Module):
     def __init__(self, fold_x, data_path, seq_len):
