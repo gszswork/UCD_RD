@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from my_transformer import TransformerEncoder, TransformerEncoderLayer
 import math, copy
 import random
+import wandb
 
 device = th.device('cuda:0' if th.cuda.is_available() else 'cpu')
 
@@ -52,7 +53,7 @@ class PRM(nn.Module):
     def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        out = F.softmax(x, dim=1)
+        out = F.log_softmax(x, dim=1)
         return out
 
 class SCL(th.nn.Module):
@@ -148,7 +149,7 @@ class SCL(th.nn.Module):
         return cos_loss
 
 class Net(nn.Module):
-    def __init__(self, input_dim, d_model, nhead, num_layers, alpha=[0.5, 0.5], beta=[0.5, 0.5], gama=[0.8, 0.1, 0.1]):
+    def __init__(self, input_dim, d_model, nhead, num_layers, alpha=[0.5, 0.5], beta=[0.5, 0.5], gama=[0.5, 0, 0.5]):
         super(Net, self).__init__()
         self.transformer = TransformerModel(d_model, nhead, num_layers)
         self.prm = PRM(d_model, 256, 2)
@@ -156,7 +157,8 @@ class Net(nn.Module):
         self.alpha = alpha
         self.beta = beta
         self.gama = gama  # to reweight the losses. 
-        self.ce_loss = nn.CrossEntropyLoss()
+        # self.ce_loss = nn.CrossEntropyLoss()
+        # self.ce_loss = F.nll_loss()
 
     def forward(self, in_data, out_data):
         # out_data's labels are not available. 
@@ -187,8 +189,6 @@ class Net(nn.Module):
         cross_cl_loss1 = self.cl_module(in_x, out_x, in_y, out_pseudo_labels)
         cross_cl_loss2 = self.cl_module(out_x, in_x, out_pseudo_labels, in_y)
         
-
-
         # Cross-Attention 
         cross_attn_out = self.transformer(q=in_data.x, k=out_data.x, v=out_data.x)
         cross_attn_out.squeeze_(dim=1)
@@ -199,14 +199,24 @@ class Net(nn.Module):
         cross_cl_loss = cross_cl_loss1 + cross_cl_loss2 + prototype_cl_loss
         all_cl_loss = self.beta[0]*intro_cl_loss + self.beta[1]*cross_cl_loss
 
-        ce_loss = self.ce_loss(in_pred, in_y)/in_x.shape[0]
+        ce_loss = F.nll_loss(in_pred, in_y)
 
-        #print('Visualisation of all losses:')
-        #print(ce_loss, all_cl_loss, kl_loss)
+        print('Visualisation of all losses:')
+        print(ce_loss, all_cl_loss, kl_loss)
         #print('cl_loss: ',in_cl_loss, out_cl_loss, cross_cl_loss1, cross_cl_loss2, prototype_cl_loss)
         #print('kl_loss: ', kl_loss)
         all_loss = self.gama[0]*ce_loss + self.gama[1]*all_cl_loss + self.gama[2]*kl_loss
-        return in_pred, all_loss
+        loss_things = {}
+
+        loss_things['ce_loss'] = ce_loss.cpu().detach().numpy()
+        loss_things['intro-cl-in-loss'] = in_cl_loss.cpu().detach().numpy()
+        loss_things['intro-cl-out-loss'] = out_cl_loss.cpu().detach().numpy()
+        loss_things['cross-cl-in-loss'] = cross_cl_loss1.cpu().detach().numpy()
+        loss_things['cross-cl-out-loss'] = cross_cl_loss2.cpu().detach().numpy()
+        loss_things['prototype-cl-loss'] = prototype_cl_loss.cpu().detach().numpy()
+        loss_things['kl-loss'] = kl_loss.cpu().detach().numpy()
+        loss_things['all-loss'] = all_loss.cpu().detach().numpy()
+        return in_pred, all_loss, loss_things
 
 
     def predict(self, data):

@@ -1,5 +1,25 @@
 from dataset import *
 
+
+def get_dataset(datasetname, seq_len=128):
+    if datasetname == 'Twitter':
+        in_data_path = '../data/in-domain/Twittergraph'
+        in_twitter_ids = np.load('../data/in-domain/twi_id_ids.npy')
+        out_data_path = '../data/out-of-domain/Twittergraph'
+        out_twitter_ids = np.load('../data/out-of-domain/twi_ood_ids.npy')
+        in_dataset = UCDDataset(in_twitter_ids, in_data_path, seq_len)
+        out_dataset = UCDDataset(out_twitter_ids, out_data_path, seq_len)
+    if datasetname == 'Weibo':
+        in_data_path = '../data/in-domain/Weibograph'
+        in_weibo_ids = np.load('../data/in-domain/weibo_id_ids.npy')
+        out_data_path = '../data/out-of-domain/Weibograph'
+        out_weibo_ids = np.load('../data/out-of-domain/weibo_ood_ids.npy')
+        in_dataset = UCDDataset(in_weibo_ids, in_data_path, seq_len)
+        out_dataset = UCDDataset(out_weibo_ids, out_data_path, seq_len)
+    
+    return in_dataset, out_dataset
+
+'''
 def get_dataset(datasetname, seq_len=128):
     if datasetname == 'Twitter':
         in_data_path = '../data/in-domain/Twittergraph'
@@ -17,3 +37,4 @@ def get_dataset(datasetname, seq_len=128):
         out_dataset = UCDDataset(out_weibo_ids, out_data_path, seq_len)
     
     return in_dataset, out_dataset
+'''
